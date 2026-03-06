@@ -8,8 +8,8 @@ from .views import (
     stock_history,
     MyStockListCreateView,
     MyStockDeleteView,
+    PredictView,
 )
-from .views import PredictView
 from .pro_prediction_views import ProPredictionView
 
 urlpatterns = [
@@ -24,10 +24,11 @@ urlpatterns = [
     path("stock/overview/", stock_overview),
     path("stock/history/", stock_history),
 
-    # My Stocks (user-specific)
+    # My Stocks
     path("mystocks/", MyStockListCreateView.as_view(), name="mystocks"),
     path("mystocks/<int:pk>/", MyStockDeleteView.as_view(), name="mystock-delete"),
-    path("predict/", PredictView.as_view(), name="predict"),
 
+    # Prediction
+    path("predict/", PredictView.as_view(), name="predict"),
     path("pro-predict/", ProPredictionView.as_view(), name="pro-predict"),
 ]

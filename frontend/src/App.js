@@ -59,7 +59,7 @@ export default function App() {
         />
 
         <Route
-          path="/pro-prediction"
+          path="/pro-predict/:symbol"
           element={
             <RequireAuth>
               <ProPrediction />
