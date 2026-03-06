@@ -10,6 +10,7 @@ from .views import (
     MyStockDeleteView,
 )
 from .views import PredictView
+from .pro_prediction_views import ProPredictionView
 
 urlpatterns = [
     path("ping/", ping),
@@ -27,4 +28,6 @@ urlpatterns = [
     path("mystocks/", MyStockListCreateView.as_view(), name="mystocks"),
     path("mystocks/<int:pk>/", MyStockDeleteView.as_view(), name="mystock-delete"),
     path("predict/", PredictView.as_view(), name="predict"),
+
+    path("pro-predict/", ProPredictionView.as_view(), name="pro-predict"),
 ]
