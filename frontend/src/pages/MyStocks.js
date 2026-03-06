@@ -228,6 +228,9 @@ export default function MyStocks() {
                     <button style={redBtn} onClick={() => deleteStock(it.id)}>
                       Delete
                     </button>
+                    <button onClick={() => nav("/pro-prediction")} style={headerBtn}>
+  ✦ Pro Prediction
+</button>
                   </div>
                 </div>
               </div>

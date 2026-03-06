@@ -1,12 +1,13 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Dashboard from "./pages/Dashboard";
 import StockPage from "./pages/StockPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-
 import MyStocks from "./pages/MyStocks";
 import Predict from "./pages/Predict";
+import ProPrediction from "./pages/ProPrediction";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("access");
@@ -18,11 +19,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/mystocks" element={<MyStocks />} />
-        
-        <Route path="/predict/:symbol" element={<Predict />} />
+        <Route path="/register" element={<Register />} />
 
         <Route
           path="/"
@@ -32,6 +30,7 @@ export default function App() {
             </RequireAuth>
           }
         />
+
         <Route
           path="/stock/:symbol"
           element={
@@ -39,16 +38,36 @@ export default function App() {
               <StockPage />
             </RequireAuth>
           }
-          
         />
+
         <Route
-  path="/predict/:symbol"
-  element={
-    <RequireAuth>
-      <Predict />
-    </RequireAuth>
-  }
-/>
+          path="/mystocks"
+          element={
+            <RequireAuth>
+              <MyStocks />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/predict/:symbol"
+          element={
+            <RequireAuth>
+              <Predict />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/pro-prediction"
+          element={
+            <RequireAuth>
+              <ProPrediction />
+            </RequireAuth>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
