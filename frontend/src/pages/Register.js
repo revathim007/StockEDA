@@ -23,11 +23,21 @@ export default function Register() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "black", color: "white", padding: 24 }}>
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "black", 
+      color: "white", 
+      padding: 24,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      textAlign: "center"
+    }}>
       <h1 style={{ fontSize: 34, marginBottom: 6 }}>Stock Verse</h1>
       <p style={{ opacity: 0.75, marginBottom: 20 }}>Create your account</p>
 
-      <form onSubmit={submit} style={{ maxWidth: 420, display: "grid", gap: 12 }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, display: "grid", gap: 12 }}>
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -40,6 +50,7 @@ export default function Register() {
             color: "white",
             outline: "none",
             fontSize: 16,
+            textAlign: "left"
           }}
         />
         <input
@@ -55,6 +66,7 @@ export default function Register() {
             color: "white",
             outline: "none",
             fontSize: 16,
+            textAlign: "left"
           }}
         />
         <button
