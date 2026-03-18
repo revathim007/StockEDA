@@ -44,7 +44,7 @@ export default function StockPage() {
       try {
         const ov = await api.get(`/stock/overview/`, { params: { symbol } });
         const hi = await api.get(`/stock/history/`, {
-          params: { symbol, period: "1y" },
+          params: { symbol, period: "1mo" },
         });
         setOverview(ov.data);
         setHistory(hi.data);
@@ -75,7 +75,7 @@ export default function StockPage() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: "white" } },
+      legend: { display: true, labels: { color: "white" } },
       tooltip: { enabled: true },
     },
     scales: {
@@ -130,24 +130,27 @@ export default function StockPage() {
         pointRadius: 1,
         borderWidth: 3,
         tension: 0.25,
+        fill: true,
       },
       {
-        label: "MA20",
+        label: "Open",
+        data: history?.open || [],
+        borderColor: "#f43f5e",
+        backgroundColor: "rgba(244,63,94,0.15)",
+        pointBackgroundColor: "#f43f5e",
+        pointRadius: 1,
+        borderWidth: 3,
+        tension: 0.25,
+      },
+      {
+        label: "1-Month MA",
         data: history?.ma20 || [],
-        borderColor: "#facc15",
-        backgroundColor: "rgba(250,204,21,0.08)",
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.1)",
         pointRadius: 0,
-        borderWidth: 2,
+        borderWidth: 4,
         tension: 0.25,
-      },
-      {
-        label: "MA50",
-        data: history?.ma50 || [],
-        borderColor: "#a855f7",
-        backgroundColor: "rgba(168,85,247,0.08)",
-        pointRadius: 0,
-        borderWidth: 2,
-        tension: 0.25,
+        fill: true,
       },
     ],
   };
@@ -288,7 +291,7 @@ export default function StockPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, marginTop: 18 }}>
         <div style={cardStyle}>
-          <h3 style={{ marginTop: 0 }}>Price + Moving Averages (1Y)</h3>
+          <h3 style={{ marginTop: 0 }}>Price + Moving Averages (1mo)</h3>
           <div style={{ height: 380 }}>
             <Line data={priceLine} options={chartOptions} />
           </div>

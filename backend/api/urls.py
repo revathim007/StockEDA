@@ -1,4 +1,9 @@
 from django.urls import path
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 from .views import (
     ping,
     register,
@@ -19,6 +24,7 @@ urlpatterns = [
     path("auth/register/", register),
     path("auth/login/", login),
     path("auth/me/", me),
+    path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
     # Universal stock data
     path("stock/overview/", stock_overview),

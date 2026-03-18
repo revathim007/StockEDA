@@ -95,28 +95,51 @@ export default function Predict() {
 
   // ---------- Safe extractors (works even if some keys missing) ----------
   const companyName = data?.company || symbol;
+  const nextDayPrediction = data?.next_day_prediction;
+  const metrics = data?.metrics;
+  const currencySymbol = data?.currency_symbol || (symbol.endsWith(".NS") || symbol.endsWith(".BO") ? "₹" : "$");
 
-  // For charts, we try multiple possible keys to avoid break:
-  const dates = data?.dates || data?.history?.dates || [];
-  const close = data?.close || data?.history?.close || [];
+  // Chart combines 30d history + 30d prediction
+  const histDates = data?.history_30d?.dates || [];
+  const histClose = data?.history_30d?.close || [];
+  
+  const predDates = data?.prediction_30d?.dates || [];
+  const predClose = data?.prediction_30d?.pred || [];
+  const predUpper = data?.prediction_30d?.upper || [];
+  const predLower = data?.prediction_30d?.lower || [];
 
-  // Linear regression predicted prices
-  const lrPred = data?.linear_regression?.pred || data?.linear_regression_pred || [];
-  // Logistic regression (0/1 signals) + probability
-  const logLabel = data?.logistic_regression?.signal || data?.logistic_signal || [];
-  const logProb = data?.logistic_regression?.prob || data?.logistic_prob || [];
-  // KMeans scatter points
-  const kmPoints = data?.kmeans?.points || data?.kmeans_points || []; // [{x,y,cluster}]
-  const kmCenters = data?.kmeans?.centers || data?.kmeans_centers || []; // [{x,y}]
+  // We need to create a unified label set for the chart
+  // histDates and predDates overlap by 1 day for a smooth connection
+  const chartDates = [...histDates, ...predDates.slice(1)];
+  
+  // Align datasets
+  // History ends where prediction starts
+  const chartClose = [...histClose, ...Array(Math.max(0, predDates.length - 1)).fill(null)];
+  
+  // Prediction starts exactly at the end of history (the backend already included it)
+  const chartPred = [...Array(Math.max(0, histDates.length - 1)).fill(null), ...predClose];
+  const chartUpper = [...Array(Math.max(0, histDates.length - 1)).fill(null), ...predUpper];
+  const chartLower = [...Array(Math.max(0, histDates.length - 1)).fill(null), ...predLower];
 
   // ---------- Neon chart defaults ----------
   const commonOptions = useMemo(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
         legend: { labels: { color: "white" } },
-        tooltip: { enabled: true },
+        tooltip: { 
+          enabled: true,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          titleColor: '#00f5ff',
+          bodyColor: '#fff',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+        },
         zoom: {
           zoom: {
             wheel: { enabled: true },
@@ -124,124 +147,73 @@ export default function Predict() {
             mode: "x",
           },
           pan: { enabled: true, mode: "x" },
-          limits: { x: { min: "original", max: "original" } },
         },
       },
       scales: {
-        x: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.08)" } },
-        y: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.08)" } },
+        x: { 
+          ticks: { color: "rgba(255,255,255,0.6)", maxRotation: 45, minRotation: 45 }, 
+          grid: { color: "rgba(255,255,255,0.05)" } 
+        },
+        y: { 
+          ticks: { color: "rgba(255,255,255,0.6)" }, 
+          grid: { color: "rgba(255,255,255,0.05)" } 
+        },
       },
     }),
     []
   );
 
   // ---------- Charts ----------
-  const priceVsLR = useMemo(() => {
+  const priceVsPrediction = useMemo(() => {
     return {
-      labels: dates,
+      labels: chartDates,
       datasets: [
         {
-          label: "Close Price",
-          data: close,
+          label: "Historical Price",
+          data: chartClose,
           borderColor: "#00f5ff",
           backgroundColor: "rgba(0,245,255,0.10)",
-          fill: true,
-          tension: 0.35,
+          fill: false,
+          tension: 0.3,
           pointRadius: 0,
-          borderWidth: 2,
+          pointHoverRadius: 4,
+          borderWidth: 3,
         },
         {
-          label: "Linear Regression (Pred)",
-          data: lrPred?.length ? lrPred : [],
+          label: "Predicted Price",
+          data: chartPred,
           borderColor: "#a855f7",
           backgroundColor: "rgba(168,85,247,0.10)",
+          borderDash: [6, 4],
           fill: false,
-          tension: 0.35,
+          tension: 0.3,
           pointRadius: 0,
-          borderWidth: 2,
+          pointHoverRadius: 4,
+          borderWidth: 3,
         },
-      ],
-    };
-  }, [dates, close, lrPred]);
-
-  const logisticSignals = useMemo(() => {
-    return {
-      labels: dates,
-      datasets: [
         {
-          label: "Logistic Signal (0=Down, 1=Up)",
-          data: logLabel,
-          borderColor: "#00ff9d",
-          backgroundColor: "rgba(0,255,157,0.18)",
-          fill: true,
-          tension: 0.25,
+          label: "Upper Range",
+          data: chartUpper,
+          borderColor: "rgba(168,85,247,0.2)",
+          backgroundColor: "transparent",
+          borderWidth: 1,
           pointRadius: 0,
-          borderWidth: 2,
+          fill: false,
+          tension: 0.3,
         },
-      ],
-    };
-  }, [dates, logLabel]);
-
-  const logisticProb = useMemo(() => {
-    return {
-      labels: dates,
-      datasets: [
         {
-          label: "Probability of Up (0→1)",
-          data: logProb,
-          borderColor: "#facc15",
-          backgroundColor: "rgba(250,204,21,0.15)",
-          fill: true,
-          tension: 0.25,
+          label: "Lower Range",
+          data: chartLower,
+          borderColor: "rgba(168,85,247,0.2)",
+          backgroundColor: "rgba(168,85,247,0.05)",
+          borderWidth: 1,
           pointRadius: 0,
-          borderWidth: 2,
+          fill: '-1', // Fill the area between upper and lower
+          tension: 0.3,
         },
       ],
     };
-  }, [dates, logProb]);
-
-  const kmeansScatter = useMemo(() => {
-    const clusters = {};
-    (kmPoints || []).forEach((p) => {
-      const c = p.cluster ?? 0;
-      if (!clusters[c]) clusters[c] = [];
-      clusters[c].push({ x: p.x, y: p.y });
-    });
-
-    const datasets = Object.keys(clusters).map((c) => ({
-      label: `Cluster ${c}`,
-      data: clusters[c],
-      pointRadius: 4,
-      pointHoverRadius: 6,
-    }));
-
-    if (kmCenters?.length) {
-      datasets.push({
-        label: "Centers",
-        data: kmCenters.map((c) => ({ x: c.x, y: c.y })),
-        pointRadius: 7,
-        pointHoverRadius: 9,
-      });
-    }
-
-    return { datasets };
-  }, [kmPoints, kmCenters]);
-
-  const scatterOptions = useMemo(
-    () => ({
-      ...commonOptions,
-      scales: {
-        x: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.08)" } },
-        y: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.08)" } },
-      },
-    }),
-    [commonOptions]
-  );
-
-  // ---------- Helpers ----------
-  const hasLR = (lrPred || []).length > 0;
-  const hasLog = (logLabel || []).length > 0 || (logProb || []).length > 0;
-  const hasKM = (kmPoints || []).length > 0;
+  }, [chartDates, chartClose, chartPred, chartUpper, chartLower]);
 
   return (
     <div style={page}>
@@ -250,109 +222,55 @@ export default function Predict() {
           ← Back
         </button>
         <div>
-          <h1 style={title}>Prediction: {companyName}</h1>
-          <div style={sub}>Symbol: {symbol} • Zoom: mouse-wheel • Pan: drag</div>
+          <h1 style={title}>AI Price Analytics: {companyName}</h1>
+          <div style={sub}>Symbol: {symbol} • Advanced Time-Series Prediction</div>
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={loadPredict} style={headerBtn}>
-          ↻ Refresh
+          ↻ Refresh Analysis
         </button>
       </div>
 
-      {msg && <div style={{ marginBottom: 14, opacity: 0.9, fontSize: 14 }}>{msg}</div>}
+      {msg && <div style={{ marginBottom: 14, background: "rgba(255,0,0,0.1)", padding: 10, borderRadius: 8, color: "#ff4444" }}>{msg}</div>}
 
       {loading ? (
-        <div style={{ opacity: 0.75 }}>Loading prediction...</div>
+        <div style={{ opacity: 0.75, display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="spinner" style={{ width: 20, height: 20, border: "2px solid #00f5ff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+          Calculating deep analytics...
+        </div>
       ) : !data ? (
-        <div style={{ opacity: 0.75 }}>No prediction data.</div>
+        <div style={{ opacity: 0.75 }}>No prediction data available.</div>
       ) : (
-        <div style={{ display: "grid", gap: 14 }}>
-          {/* 1) Linear Regression */}
-          <div style={card}>
-            <div style={{ fontWeight: 1000, fontSize: 18, marginBottom: 8 }}>
-              1) Linear Regression — Close vs Predicted
-            </div>
-            {!hasLR ? (
-              <div style={{ opacity: 0.75 }}>
-                Backend didn’t return linear regression series yet.
+        <div style={{ display: "grid", gap: 20 }}>
+          
+          {/* Metrics Row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <div style={card}>
+              <div style={{ opacity: 0.6, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Next Day Forecast</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: "#00f5ff", marginTop: 4 }}>
+                {nextDayPrediction ? `${currencySymbol}${nextDayPrediction}` : "N/A"}
               </div>
-            ) : (
-              <div style={{ height: 360 }}>
-                <Line data={priceVsLR} options={commonOptions} />
-              </div>
-            )}
-          </div>
-
-          {/* 2) Logistic Regression */}
-          <div style={card}>
-            <div style={{ fontWeight: 1000, fontSize: 18, marginBottom: 8 }}>
-              2) Logistic Regression — Up/Down Signal + Probability
-            </div>
-
-            {!hasLog ? (
-              <div style={{ opacity: 0.75 }}>
-                Backend didn’t return logistic regression series yet.
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 12 }}>
-                {(logLabel || []).length > 0 && (
-                  <div style={{ height: 260 }}>
-                    <Line data={logisticSignals} options={commonOptions} />
-                  </div>
-                )}
-                {(logProb || []).length > 0 && (
-                  <div style={{ height: 260 }}>
-                    <Line data={logisticProb} options={commonOptions} />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 3) KMeans */}
-          <div style={card}>
-            <div style={{ fontWeight: 1000, fontSize: 18, marginBottom: 8 }}>
-              3) KMeans Clustering — Market Regimes (Scatter)
-            </div>
-            {!hasKM ? (
-              <div style={{ opacity: 0.75 }}>
-                Backend didn’t return kmeans points yet.
-              </div>
-            ) : (
-              <div style={{ height: 360 }}>
-                <Scatter data={kmeansScatter} options={scatterOptions} />
-              </div>
-            )}
-          </div>
-
-          {/* AI insight */}
-          <div style={card}>
-            <div style={{ fontWeight: 1000, fontSize: 18, marginBottom: 8 }}>
-              AI Final Insight
-            </div>
-            <div style={{ opacity: 0.9, lineHeight: 1.55 }}>
-              {data?.insight ||
-                "Backend insight not provided yet. Once backend returns 'insight', it will appear here."}
             </div>
           </div>
 
-          {/* Reset zoom */}
-          <button
-            onClick={() => {
-              try {
-                // Reset zoom for all charts on page
-                // Chart.js instances are managed internally; easiest is just refresh
-                loadPredict();
-              } catch {}
-            }}
-            style={{
-              ...headerBtn,
-              justifySelf: "start",
-              boxShadow: "0 0 18px rgba(0,245,255,0.14)",
-            }}
-          >
-            ⤾ Reset Zoom (Refresh)
-          </button>
+          {/* Chart Section */}
+          <div style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontWeight: 1000, fontSize: 18 }}>
+                30-Day Predictive Trajectory
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.6 }}>
+                Includes 95% Confidence Intervals
+              </div>
+            </div>
+            <div style={{ height: 450 }}>
+              <Line data={priceVsPrediction} options={commonOptions} />
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
         </div>
       )}
     </div>

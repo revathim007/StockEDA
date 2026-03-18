@@ -6,6 +6,8 @@ export default function Register() {
   const nav = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
@@ -14,11 +16,11 @@ export default function Register() {
     setErr("");
     setMsg("");
     try {
-      await api.post("/auth/register/", { username, password });
-      setMsg("Registered ✅ Now login!");
+      await api.post("/auth/register/", { username, password, first_name: fullName, email });
+      setMsg(`Welcome, ${fullName}! You are now registered. Please login.`);
       setTimeout(() => nav("/login"), 800);
     } catch (e2) {
-      setErr(e2?.response?.data?.error || JSON.stringify(e2?.response?.data) || e2.message);
+      setErr(e2?.response?.data?.error || e2?.response?.data?.username || JSON.stringify(e2?.response?.data) || e2.message);
     }
   };
 
@@ -42,6 +44,36 @@ export default function Register() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
+          style={{
+            padding: 14,
+            borderRadius: 12,
+            border: "1px solid #222",
+            background: "#0b0b0b",
+            color: "white",
+            outline: "none",
+            fontSize: 16,
+            textAlign: "left"
+          }}
+        />
+        <input
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Full Name"
+          style={{
+            padding: 14,
+            borderRadius: 12,
+            border: "1px solid #222",
+            background: "#0b0b0b",
+            color: "white",
+            outline: "none",
+            fontSize: 16,
+            textAlign: "left"
+          }}
+        />
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email ID"
           style={{
             padding: 14,
             borderRadius: 12,
