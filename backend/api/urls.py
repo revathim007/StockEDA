@@ -14,6 +14,7 @@ from .views import (
     MyStockListCreateView,
     MyStockDeleteView,
     PredictView,
+    SentimentView,
 )
 from .pro_prediction_views import ProPredictionView
 
@@ -37,4 +38,5 @@ urlpatterns = [
     # Prediction
     path("predict/", PredictView.as_view(), name="predict"),
     path("pro-predict/", ProPredictionView.as_view(), name="pro-predict"),
+    path("sentiment/", SentimentView.as_view(), name="sentiment"),
 ]

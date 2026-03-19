@@ -8,6 +8,7 @@ import Register from "./pages/Register";
 import MyStocks from "./pages/MyStocks";
 import Predict from "./pages/Predict";
 import ProPrediction from "./pages/ProPrediction";
+import Sentiment from "./pages/Sentiment";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("access");
@@ -63,6 +64,15 @@ export default function App() {
           element={
             <RequireAuth>
               <ProPrediction />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/sentiment/:symbol"
+          element={
+            <RequireAuth>
+              <Sentiment />
             </RequireAuth>
           }
         />

@@ -223,7 +223,7 @@ export default function Predict() {
         </button>
         <div>
           <h1 style={title}>AI Price Analytics: {companyName}</h1>
-          <div style={sub}>Symbol: {symbol} • Advanced Time-Series Prediction</div>
+          <div style={sub}>Symbol: {symbol}</div>
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={loadPredict} style={headerBtn}>

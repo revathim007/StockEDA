@@ -126,6 +126,16 @@ export default function MyStocks() {
     fontWeight: 900,
   };
 
+  const blueBtn = {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(59,130,246,0.35)",
+    background: "rgba(59,130,246,0.18)",
+    color: "white",
+    cursor: "pointer",
+    fontWeight: 900,
+  };
+
   const redBtn = {
     padding: "10px 12px",
     borderRadius: 12,
@@ -246,6 +256,13 @@ export default function MyStocks() {
                       onClick={() => nav(`/pro-predict/${it.symbol}`)}
                     >
                       ✦ Pro Prediction
+                    </button>
+
+                    <button
+                      style={blueBtn}
+                      onClick={() => nav(`/sentiment/${it.symbol}`)}
+                    >
+                      Sentiment Analysis
                     </button>
 
                     <button style={redBtn} onClick={() => deleteStock(it.id)}>

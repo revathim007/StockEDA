@@ -387,6 +387,133 @@ def _macd(series, slow=26, fast=12, signal=9):
 # PREDICT (ENHANCED: RandomForest + TA + Iterative Forecasting)
 # ---------------------------
 
+# ---------------------------
+# SENTIMENT ANALYSIS (NewsAPI + TextBlob fallback + LangChain structure)
+# ---------------------------
+
+class SentimentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from textblob import TextBlob
+        from newsapi import NewsApiClient
+        from bs4 import BeautifulSoup
+        import re
+
+        symbol = (request.query_params.get("symbol") or "").strip()
+        print(f"DEBUG: Sentiment request for symbol: {symbol}")
+        if not symbol:
+            return Response({"error": "Symbol required"}, status=400)
+
+        try:
+            # 1. Fetch Company Name (with fallback to symbol)
+            company_name = symbol
+            try:
+                t = yf.Ticker(symbol)
+                # Avoid heavy .info call if possible, or use a shorter timeout-like approach
+                info = t.info or {}
+                company_name = info.get("shortName") or info.get("longName") or symbol
+            except Exception as yfe:
+                print(f"DEBUG: yfinance info fetch failed: {yfe}")
+            
+            print(f"DEBUG: Company name to search: {company_name}")
+
+            # 2. Fetch News from NewsAPI
+            # Using the provided API key
+            newsapi = NewsApiClient(api_key="0d08ad9a65124d22a8589b51785105b6")
+            
+            # Search for news related to the company name or symbol
+            query = company_name.split(' ')[0] if ' ' in company_name else company_name
+            query = f"{query} OR {symbol}"
+            print(f"DEBUG: NewsAPI query: {query}")
+            all_articles = newsapi.get_everything(q=query, language='en', sort_by='relevancy', page_size=10)
+            print(f"DEBUG: NewsAPI response articles count: {len(all_articles.get('articles', []))}")
+
+            articles = all_articles.get('articles', [])
+            
+            # 3. Clean and Analyze Sentiment
+            results = {
+                "positive": 0,
+                "negative": 0,
+                "neutral": 0,
+                "total": 0,
+                "articles": []
+            }
+
+            sentiment_data = []
+
+            for art in articles:
+                title = art.get('title', '')
+                desc = art.get('description', '') or ''
+                content = art.get('content', '') or ''
+                
+                full_text = f"{title} {desc} {content}"
+                
+                # Basic cleaning
+                clean_text = BeautifulSoup(full_text, "html.parser").get_text()
+                clean_text = re.sub(r'http\S+', '', clean_text) # Remove URLs
+                clean_text = re.sub(r'[^a-zA-Z\s]', '', clean_text) # Remove special chars
+                
+                if not clean_text.strip():
+                    continue
+
+                # Sentiment Analysis using TextBlob
+                analysis = TextBlob(clean_text)
+                polarity = analysis.sentiment.polarity
+                
+                if polarity > 0.1:
+                    sentiment = 1 # Positive
+                    results["positive"] += 1
+                elif polarity < -0.1:
+                    sentiment = -1 # Negative
+                    results["negative"] += 1
+                else:
+                    sentiment = 0 # Neutral
+                    results["neutral"] += 1
+                
+                results["total"] += 1
+                results["articles"].append({
+                    "title": title,
+                    "url": art.get('url'),
+                    "sentiment": sentiment,
+                    "source": art.get('source', {}).get('name')
+                })
+                
+                sentiment_data.append({"text": clean_text, "score": sentiment})
+
+            # 4. AI Suggestion (Simulating LangChain/LangGraph output)
+            # In a real scenario, we would pass 'sentiment_data' to a LangGraph workflow.
+            # Since no LLM key is provided, we'll generate a structured insight based on the counts.
+            
+            pos_pct = (results["positive"] / results["total"] * 100) if results["total"] > 0 else 0
+            neg_pct = (results["negative"] / results["total"] * 100) if results["total"] > 0 else 0
+            
+            if pos_pct > 50:
+                suggestion = f"The overall sentiment for {company_name} is highly positive. Market news suggests strong confidence and growth potential."
+            elif neg_pct > 50:
+                suggestion = f"The overall sentiment for {company_name} is leaning negative. Investors are expressing concerns, possibly due to recent market volatility or specific company news."
+            elif results["total"] > 0:
+                suggestion = f"The sentiment for {company_name} is currently mixed or neutral. The news coverage shows a balanced view of risks and opportunities."
+            else:
+                suggestion = f"No recent news articles found for {company_name}. Sentiment analysis is unavailable at this time."
+
+            return Response({
+                "symbol": symbol,
+                "company": company_name,
+                "total_articles": results["total"],
+                "positive_count": results["positive"],
+                "negative_count": results["negative"],
+                "neutral_count": results["neutral"],
+                "articles": results["articles"][:5], # Return top 5 for UI
+                "ai_suggestion": suggestion
+            })
+
+        except Exception as e:
+            print(f"ERROR: SentimentView failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=500)
+
 class PredictView(APIView):
     permission_classes = [IsAuthenticated]
 
