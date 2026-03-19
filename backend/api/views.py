@@ -432,15 +432,8 @@ class SentimentView(APIView):
             articles = all_articles.get('articles', [])
             
             # 3. Clean and Analyze Sentiment
-            results = {
-                "positive": 0,
-                "negative": 0,
-                "neutral": 0,
-                "total": 0,
-                "articles": []
-            }
-
-            sentiment_data = []
+            polarities = []
+            analyzed_articles = []
 
             for art in articles:
                 title = art.get('title', '')
@@ -460,51 +453,41 @@ class SentimentView(APIView):
                 # Sentiment Analysis using TextBlob
                 analysis = TextBlob(clean_text)
                 polarity = analysis.sentiment.polarity
+                polarities.append(polarity)
                 
-                if polarity > 0.1:
-                    sentiment = 1 # Positive
-                    results["positive"] += 1
-                elif polarity < -0.1:
-                    sentiment = -1 # Negative
-                    results["negative"] += 1
-                else:
-                    sentiment = 0 # Neutral
-                    results["neutral"] += 1
-                
-                results["total"] += 1
-                results["articles"].append({
+                analyzed_articles.append({
                     "title": title,
                     "url": art.get('url'),
-                    "sentiment": sentiment,
+                    "polarity": polarity,
                     "source": art.get('source', {}).get('name')
                 })
-                
-                sentiment_data.append({"text": clean_text, "score": sentiment})
 
-            # 4. AI Suggestion (Simulating LangChain/LangGraph output)
-            # In a real scenario, we would pass 'sentiment_data' to a LangGraph workflow.
-            # Since no LLM key is provided, we'll generate a structured insight based on the counts.
-            
-            pos_pct = (results["positive"] / results["total"] * 100) if results["total"] > 0 else 0
-            neg_pct = (results["negative"] / results["total"] * 100) if results["total"] > 0 else 0
-            
-            if pos_pct > 50:
-                suggestion = f"The overall sentiment for {company_name} is highly positive. Market news suggests strong confidence and growth potential."
-            elif neg_pct > 50:
-                suggestion = f"The overall sentiment for {company_name} is leaning negative. Investors are expressing concerns, possibly due to recent market volatility or specific company news."
-            elif results["total"] > 0:
-                suggestion = f"The sentiment for {company_name} is currently mixed or neutral. The news coverage shows a balanced view of risks and opportunities."
+            # 4. Calculate Overall Rating (0-10)
+            if not polarities:
+                avg_polarity = 0
             else:
-                suggestion = f"No recent news articles found for {company_name}. Sentiment analysis is unavailable at this time."
+                avg_polarity = sum(polarities) / len(polarities)
+            
+            # Scale from [-1, 1] to [0, 10]
+            rating = (avg_polarity + 1) * 5
+            rating = round(max(0, min(10, rating)), 1) # Clamp between 0 and 10
+
+            # 5. AI Suggestion based on the rating
+            if rating >= 7.5:
+                suggestion = f"Overall sentiment for {company_name} is highly positive (Rating: {rating}/10). Market news suggests strong confidence and growth potential."
+            elif rating <= 3.5:
+                suggestion = f"Sentiment for {company_name} is leaning negative (Rating: {rating}/10). Investors may be expressing concerns based on recent news."
+            elif analyzed_articles:
+                suggestion = f"Sentiment for {company_name} is currently mixed or neutral (Rating: {rating}/10). News coverage shows a balanced view of risks and opportunities."
+            else:
+                suggestion = f"No recent news articles found for {company_name}. Sentiment analysis is unavailable."
 
             return Response({
                 "symbol": symbol,
                 "company": company_name,
-                "total_articles": results["total"],
-                "positive_count": results["positive"],
-                "negative_count": results["negative"],
-                "neutral_count": results["neutral"],
-                "articles": results["articles"][:5], # Return top 5 for UI
+                "total_articles": len(analyzed_articles),
+                "sentiment_rating": rating,
+                "articles": analyzed_articles[:5], # Return top 5 for UI
                 "ai_suggestion": suggestion
             })
 

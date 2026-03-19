@@ -1,15 +1,28 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend
-} from 'chart.js';
-import { Pie } from 'react-chartjs-2';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+// Custom Gauge Component
+const Gauge = ({ value }) => {
+  const percentage = (value / 10) * 100;
+  let color = "#9ca3af"; // Neutral
+  if (value >= 7) color = "#22c55e"; // Positive
+  if (value <= 4) color = "#ef4444"; // Negative
+
+  return (
+    <div style={{ width: "100%", background: "rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
+      <div 
+        style={{
+          width: `${percentage}%`,
+          background: color,
+          height: 20,
+          transition: "width 0.5s ease-in-out",
+          boxShadow: `0 0 15px ${color}`
+        }}
+      />
+    </div>
+  );
+};
 
 export default function Sentiment() {
   const { symbol } = useParams();
@@ -62,28 +75,11 @@ export default function Sentiment() {
     boxShadow: "0 0 25px rgba(0,245,255,0.08)",
   };
 
-  const chartData = useMemo(() => {
-    if (!data) return null;
-    return {
-      labels: ['Positive', 'Negative', 'Neutral'],
-      datasets: [
-        {
-          data: [data.positive_count, data.negative_count, data.neutral_count],
-          backgroundColor: [
-            'rgba(34, 197, 94, 0.6)', // Green
-            'rgba(239, 68, 68, 0.6)', // Red
-            'rgba(156, 163, 175, 0.6)', // Gray
-          ],
-          borderColor: [
-            '#22c55e',
-            '#ef4444',
-            '#9ca3af',
-          ],
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [data]);
+  const getPolarityColor = (polarity) => {
+    if (polarity > 0.1) return '#22c55e';
+    if (polarity < -0.1) return '#ef4444';
+    return '#9ca3af';
+  };
 
   return (
     <div style={page}>
@@ -109,28 +105,21 @@ export default function Sentiment() {
         <div style={card}>No recent news found for this stock.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          {/* Summary Stats */}
-          <div style={{ display: "grid", gap: 20 }}>
+          {/* Left Column */}
+          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
             <div style={card}>
-              <h2 style={{ marginTop: 0, fontSize: 20 }}>News Coverage Overview</h2>
-              <div style={{ display: "flex", gap: 24, marginTop: 16 }}>
-                <div>
-                  <div style={{ opacity: 0.6, fontSize: 14 }}>Total Articles</div>
-                  <div style={{ fontSize: 28, fontWeight: 900 }}>{data.total_articles}</div>
-                </div>
-                <div>
-                  <div style={{ opacity: 0.6, fontSize: 14, color: "#22c55e" }}>Positive</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: "#22c55e" }}>{data.positive_count}</div>
-                </div>
-                <div>
-                  <div style={{ opacity: 0.6, fontSize: 14, color: "#ef4444" }}>Negative</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: "#ef4444" }}>{data.negative_count}</div>
-                </div>
-                <div>
-                  <div style={{ opacity: 0.6, fontSize: 14, color: "#9ca3af" }}>Neutral</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: "#9ca3af" }}>{data.neutral_count}</div>
+              <h2 style={{ marginTop: 0, fontSize: 20 }}>Overall Sentiment Rating</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16 }}>
+                <div style={{ fontSize: 48, fontWeight: 900 }}>{data.sentiment_rating}</div>
+                <div style={{ flex: 1 }}>
+                  <Gauge value={data.sentiment_rating} />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                    <span>0 (Negative)</span>
+                    <span>10 (Positive)</span>
+                  </div>
                 </div>
               </div>
+              <div style={{ opacity: 0.7, fontSize: 14, marginTop: 12 }}>Based on {data.total_articles} recent articles.</div>
             </div>
 
             <div style={card}>
@@ -139,50 +128,32 @@ export default function Sentiment() {
                 {data.ai_suggestion}
               </div>
             </div>
-
-            <div style={card}>
-              <h2 style={{ marginTop: 0, fontSize: 20 }}>Latest Headlines</h2>
-              <div style={{ display: "grid", gap: 12 }}>
-                {data.articles.map((art, idx) => (
-                  <a 
-                    key={idx} 
-                    href={art.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ 
-                      textDecoration: "none", 
-                      color: "inherit",
-                      padding: "10px",
-                      borderRadius: 8,
-                      background: "rgba(255,255,255,0.03)",
-                      display: "block",
-                      borderLeft: `4px solid ${art.sentiment === 1 ? '#22c55e' : art.sentiment === -1 ? '#ef4444' : '#9ca3af'}`
-                    }}
-                  >
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{art.title}</div>
-                    <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>{art.source}</div>
-                  </a>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* Pie Chart */}
-          <div style={{ ...card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <h2 style={{ marginTop: 0, fontSize: 20, width: "100%", textAlign: "left" }}>Sentiment Distribution</h2>
-            <div style={{ height: 350, width: "100%", marginTop: 20 }}>
-              <Pie 
-                data={chartData} 
-                options={{
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: { color: 'white', padding: 20, font: { size: 14 } }
-                    }
-                  },
-                  maintainAspectRatio: false
-                }} 
-              />
+          {/* Right Column */}
+          <div style={{ ...card, alignContent: "start" }}>
+            <h2 style={{ marginTop: 0, fontSize: 20 }}>Latest Headlines</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              {data.articles.map((art, idx) => (
+                <a 
+                  key={idx} 
+                  href={art.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{
+                    textDecoration: "none", 
+                    color: "inherit",
+                    padding: "10px",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.03)",
+                    display: "block",
+                    borderLeft: `4px solid ${getPolarityColor(art.polarity)}`
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{art.title}</div>
+                  <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>{art.source}</div>
+                </a>
+              ))}
             </div>
           </div>
         </div>
