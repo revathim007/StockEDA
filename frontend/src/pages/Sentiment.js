@@ -1,6 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // Custom Gauge Component
 const Gauge = ({ value }) => {
@@ -75,11 +94,31 @@ export default function Sentiment() {
     boxShadow: "0 0 25px rgba(0,245,255,0.08)",
   };
 
-  const getPolarityColor = (polarity) => {
-    if (polarity > 0.1) return '#22c55e';
-    if (polarity < -0.1) return '#ef4444';
-    return '#9ca3af';
-  };
+  const peerChartData = useMemo(() => {
+    if (!data || !data.peer_comparison) return null;
+    const labels = data.peer_comparison.map(p => p.symbol);
+    const ratings = data.peer_comparison.map(p => p.rating);
+    
+    const peerColors = ['rgba(34, 197, 94, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(245, 158, 11, 0.6)', 'rgba(239, 68, 68, 0.6)'];
+
+    const backgroundColors = data.peer_comparison.map((p, index) => {
+      if (p.symbol.toUpperCase() === symbol.toUpperCase()) return '#a855f7'; // Highlight main symbol
+      return peerColors[index % peerColors.length];
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Sentiment Rating',
+          data: ratings,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors.map(c => c.replace("0.6", "1")),
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [data, symbol]);
 
   return (
     <div style={page}>
@@ -98,11 +137,11 @@ export default function Sentiment() {
       </div>
 
       {loading ? (
-        <div style={{ opacity: 0.75, fontSize: 18 }}>Analyzing market news...</div>
+        <div style={{ opacity: 0.75, fontSize: 18 }}>Analyzing market and peer news...</div>
       ) : error ? (
         <div style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)", padding: 16, borderRadius: 12 }}>{error}</div>
-      ) : !data || data.total_articles === 0 ? (
-        <div style={card}>No recent news found for this stock.</div>
+      ) : !data ? (
+        <div style={card}>No data found for this stock.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           {/* Left Column */}
@@ -119,7 +158,6 @@ export default function Sentiment() {
                   </div>
                 </div>
               </div>
-              <div style={{ opacity: 0.7, fontSize: 14, marginTop: 12 }}>Based on {data.total_articles} recent articles.</div>
             </div>
 
             <div style={card}>
@@ -132,28 +170,24 @@ export default function Sentiment() {
 
           {/* Right Column */}
           <div style={{ ...card, alignContent: "start" }}>
-            <h2 style={{ marginTop: 0, fontSize: 20 }}>Latest Headlines</h2>
-            <div style={{ display: "grid", gap: 12 }}>
-              {data.articles.map((art, idx) => (
-                <a 
-                  key={idx} 
-                  href={art.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{
-                    textDecoration: "none", 
-                    color: "inherit",
-                    padding: "10px",
-                    borderRadius: 8,
-                    background: "rgba(255,255,255,0.03)",
-                    display: "block",
-                    borderLeft: `4px solid ${getPolarityColor(art.polarity)}`
-                  }}
-                >
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{art.title}</div>
-                  <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>{art.source}</div>
-                </a>
-              ))}
+            <h2 style={{ marginTop: 0, fontSize: 20 }}>Peer Sentiment Comparison</h2>
+            <div style={{ height: 350, marginTop: 16 }}>
+              {peerChartData && <Bar 
+                data={peerChartData} 
+                options={{
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Sentiment Rating (0-10)', color: 'white' }
+                  },
+                  scales: {
+                    x: { min: 0, max: 10, ticks: { color: 'white' } },
+                    y: { ticks: { color: 'white' } }
+                  }
+                }}
+              />}
             </div>
           </div>
         </div>
